@@ -52,20 +52,28 @@ def plot_midprice_with_rsi(df):
     # Plot Midprice
     tickers = df['ticker'].unique()
     for ticker in tickers:
-        ticker_df = df[df['ticker'] == ticker]
+        ticker_df = df[df['ticker'] == ticker].tail(200)
+        print(f"Last 200 data points for {ticker} (Midprice):")
+        print(ticker_df[['midprice']].tail(200)) 
         axes[0].plot(ticker_df.index, ticker_df['midprice'], label=f'Midprice - {ticker}')
+        df[df['ticker'] == ticker].tail(200)
+        break
     
-    axes[0].set_title('Midprice for Different Tickers')
+    
+    axes[0].set_title('Midprice for Different Tickers (Last 200 Data Points)')
     axes[0].set_ylabel('Price')
     axes[0].legend()
     axes[0].grid(True)
     
     # Plot RSI
     for ticker in tickers:
-        ticker_df = df[df['ticker'] == ticker]
+        ticker_df = df[df['ticker'] == ticker].tail(200)
+        print(f"Last 50 data points for {ticker} (RSI):")
+        print(ticker_df[['RSI']].tail(200))  
         axes[1].plot(ticker_df.index, ticker_df['RSI'], label=f'RSI - {ticker}')
+        break
     
-    axes[1].set_title('RSI for Different Tickers')
+    axes[1].set_title('RSI for Different Tickers (Last 200 Data Points)')
     axes[1].set_ylabel('RSI Value')
     axes[1].axhline(70, color='red', linestyle='--', label='Overbought (70)')
     axes[1].axhline(30, color='green', linestyle='--', label='Oversold (30)')
@@ -76,11 +84,13 @@ def plot_midprice_with_rsi(df):
     plt.tight_layout()
     plt.show()
 
+
 # Parse the midprice by ticker data
 df_midprice = parse_midprice_by_ticker('midprice_by_ticker_1s.json')
 
 if df_midprice is not None:
     # Display the first few rows
+    print()
     print(df_midprice.head())
     # Plot the midprice with RSI
     plot_midprice_with_rsi(df_midprice)
