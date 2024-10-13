@@ -64,7 +64,7 @@ def plot_spread_by_ticker(df):
         plt.show()
 
 # Parse the spread by ticker data
-df_spread = parse_spread_by_ticker('spread_by_ticker.json')
+df_spread = parse_spread_by_ticker('spread_by_ticker_1s.json')
 
 if df_spread is not None:
     # Display the first few rows

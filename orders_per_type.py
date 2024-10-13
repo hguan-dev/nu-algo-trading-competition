@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Read the JSON file
-with open('orders_per_type.json', 'r') as file:
+with open('orders_per_type_1s.json', 'r') as file:
     json_data = file.read()
 
 # Parse the JSON data
