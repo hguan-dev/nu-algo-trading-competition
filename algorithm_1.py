@@ -1,4 +1,7 @@
 from enum import Enum
+import time
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
 class Side(Enum):
     BUY = 0
@@ -11,101 +14,94 @@ class Ticker(Enum):
 
 def place_market_order(side: Side, ticker: Ticker, quantity: float) -> bool:
     """Place a market order - DO NOT MODIFY
-
-    Parameters
-    ----------
-    side
-        Side of order to place (Side.BUY or Side.SELL)
-    ticker
-        Ticker of order to place (Ticker.ETH, Ticker.BTC, or "LTC")
-    quantity
-        Volume of order to place
-
-    Returns
-    -------
-    True if order succeeded, False if order failed due to rate limiting
-
-    ((IMPORTANT))
-    You should handle the case where the order fails due to rate limiting (maybe wait and try again?)
+    ...
     """
     return True
 
 def place_limit_order(side: Side, ticker: Ticker, quantity: float, price: float, ioc: bool = False) -> int:
     """Place a limit order - DO NOT MODIFY
-
-    Parameters
-    ----------
-    side
-        Side of order to place (Side.BUY or Side.SELL)
-    ticker
-        Ticker of order to place (Ticker.ETH, Ticker.BTC, or "LTC")
-    quantity
-        Volume of order to place
-    price
-        Price of order to place
-
-    Returns
-    -------
-    order_id if order succeeded, -1 if order failed due to rate limiting
+    ...
     """
     return 0
 
 def cancel_order(ticker: Ticker, order_id: int) -> bool:
-    """Place a limit order - DO NOT MODIFY
-    Parameters
-    ----------
-    ticker
-        Ticker of order to place (Ticker.ETH, Ticker.BTC, or "LTC")
-    order_id
-        order_id returned by place_limit_order
-
-    Returns
-    -------
-    True if order succeeded, False if cancellation failed due to rate limiting
+    """Cancel an order - DO NOT MODIFY
+    ...
     """
     return True
 
-# You can use print() and view the logs after sandbox run has completed
-# Might help for debugging
 class Strategy:
-    """Template for a strategy."""
+    """Trading strategy using a regression model to find price discrepancies."""
 
     def __init__(self) -> None:
-        """Your initialization code goes here."""
-
-    def on_trade_update(self, ticker: Ticker, side: Side, quantity: float, price: float) -> None:
-        """Called whenever two orders match. Could be one of your orders, or two other people's orders.
-
-        Parameters
-        ----------
-        ticker
-            Ticker of orders that were matched (Ticker.ETH, Ticker.BTC, or "LTC")
-        side 
-            Side of orders that were matched (Side.BUY or Side.SELL)
-        price
-            Price that trade was executed at
-        quantity
-            Volume traded
-        """
-        print(f"Python Trade update: {ticker} {side} {price} {quantity}")
+        """Initialize data structures and regression models."""
+        # Price and time history for each ticker
+        self.price_history = {ticker: [] for ticker in Ticker}
+        self.time_history = {ticker: [] for ticker in Ticker}
+        # Regression models for each ticker
+        self.models = {ticker: LinearRegression() for ticker in Ticker}
+        # Last update time
+        self.last_time = time.time()
+        # Parameters
+        self.N = 50  # Number of data points to keep
+        self.threshold = 0.001  # 0.1% price discrepancy threshold
 
     def on_orderbook_update(
         self, ticker: Ticker, side: Side, quantity: float, price: float
     ) -> None:
-        """Called whenever the orderbook changes. This could be because of a trade, or because of a new order, or both.
+        """Called whenever the orderbook changes."""
+        current_time = time.time()
+        elapsed_time = current_time - self.last_time
+        self.last_time = current_time
 
-        Parameters
-        ----------
-        ticker
-            Ticker that has an orderbook update (Ticker.ETH, Ticker.BTC, or "LTC")
-        side
-            Which orderbook was updated (Side.BUY or Side.SELL)
-        price
-            Price of orderbook that has an update
-        quantity
-            Volume placed into orderbook
-        """
-        print(f"Python Orderbook update: {ticker} {side} {price} {quantity}")
+        # Store the price and timestamp
+        self.price_history[ticker].append(price)
+        self.time_history[ticker].append(current_time)
+
+        # Keep only the last N data points
+        if len(self.price_history[ticker]) > self.N:
+            self.price_history[ticker] = self.price_history[ticker][-self.N :]
+            self.time_history[ticker] = self.time_history[ticker][-self.N :]
+
+        # If we have enough data points, update the model
+        if len(self.price_history[ticker]) >= 10:
+            times = np.array(self.time_history[ticker]).reshape(-1, 1)
+            prices = np.array(self.price_history[ticker])
+            # Fit the regression model
+            self.models[ticker].fit(times, prices)
+
+            # Predict the price 1 second into the future
+            future_time = np.array([[current_time + 1]])
+            predicted_price = self.models[ticker].predict(future_time)[0]
+
+            # Calculate the percentage difference
+            price_diff = (predicted_price - price) / price
+
+            # Decide whether to place a buy or sell order
+            if price_diff > self.threshold:
+                # Predicted price is significantly higher; place a buy order
+                self.place_order_with_retry(Side.BUY, ticker, quantity=0.01)
+            elif price_diff < -self.threshold:
+                # Predicted price is significantly lower; place a sell order
+                self.place_order_with_retry(Side.SELL, ticker, quantity=0.01)
+
+    def place_order_with_retry(self, side: Side, ticker: Ticker, quantity: float):
+        """Attempt to place an order, handling rate limiting."""
+        max_retries = 5
+        retry_delay = 0.1  # seconds
+        for attempt in range(max_retries):
+            success = place_market_order(side, ticker, quantity)
+            if success:
+                print(f"Placed {side.name} order for {quantity} {ticker.name}")
+                return
+            else:
+                print(f"Order failed due to rate limiting. Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+        print(f"Failed to place {side.name} order for {ticker.name} after {max_retries} attempts.")
+
+    def on_trade_update(self, ticker: Ticker, side: Side, quantity: float, price: float) -> None:
+        """Called whenever two orders match."""
+        print(f"Trade update: {ticker.name} {side.name} {quantity} @ {price}")
 
     def on_account_update(
         self,
@@ -115,21 +111,7 @@ class Strategy:
         quantity: float,
         capital_remaining: float,
     ) -> None:
-        """Called whenever one of your orders is filled.
-
-        Parameters
-        ----------
-        ticker
-            Ticker of order that was fulfilled (Ticker.ETH, Ticker.BTC, or "LTC")
-        side
-            Side of order that was fulfilled (Side.BUY or Side.SELL)
-        price
-            Price that order was fulfilled at
-        quantity
-            Volume of order that was fulfilled
-        capital_remaining
-            Amount of capital after fulfilling order
-        """
+        """Called whenever one of your orders is filled."""
         print(
-            f"Python Account update: {ticker} {side} {price} {quantity} {capital_remaining}"
+            f"Account update: {ticker.name} {side.name} {quantity} @ {price}, Capital Remaining: {capital_remaining}"
         )
