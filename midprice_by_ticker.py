@@ -42,52 +42,27 @@ def parse_midprice_by_ticker(json_file_path):
     
     return df
 
-def plot_midprice_with_indicators(df):
-    # Calculate technical indicators
-    df['RSI'] = ta.momentum.RSIIndicator(df['midprice'], window=14).rsi()
-    df['MA_10'] = ta.trend.SMAIndicator(df['midprice'], window=10).sma_indicator()
-    df['EMA_10'] = ta.trend.EMAIndicator(df['midprice'], window=10).ema_indicator()
-    
-    bollinger = ta.volatility.BollingerBands(df['midprice'], window=10, window_dev=2)
-    df['Bollinger_High'] = bollinger.bollinger_hband()
-    df['Bollinger_Low'] = bollinger.bollinger_lband()
-    
-    macd = ta.trend.MACD(df['midprice'])
-    df['MACD'] = macd.macd()
-    df['MACD_Signal'] = macd.macd_signal()
-    df['MACD_Diff'] = macd.macd_diff()
-    
-    # Plot the data
-    fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(14, 10), sharex=True)
-    
-    # Plot Midprice with Moving Averages and Bollinger Bands
-    axes[0].plot(df.index, df['midprice'], label='Midprice', color='blue')
-    axes[0].plot(df.index, df['MA_10'], label='MA 10', color='orange')
-    axes[0].plot(df.index, df['EMA_10'], label='EMA 10', color='green')
-    axes[0].fill_between(df.index, df['Bollinger_Low'], df['Bollinger_High'], color='lightgray', alpha=0.5, label='Bollinger Bands')
-    axes[0].set_title('Midprice with MA, EMA, and Bollinger Bands')
-    axes[0].set_ylabel('Price')
-    axes[0].legend()
-    
-    # Plot MACD
-    axes[1].plot(df.index, df['MACD'], label='MACD', color='purple')
-    axes[1].plot(df.index, df['MACD_Signal'], label='Signal Line', color='red')
-    axes[1].bar(df.index, df['MACD_Diff'], label='MACD Histogram', color='grey')
-    axes[1].set_title('MACD')
-    axes[1].set_ylabel('MACD Value')
-    axes[1].legend()
-    
-    # Plot RSI
-    axes[2].plot(df.index, df['RSI'], label='RSI', color='brown')
-    axes[2].axhline(70, color='red', linestyle='--', label='Overbought (70)')
-    axes[2].axhline(30, color='green', linestyle='--', label='Oversold (30)')
-    axes[2].set_title('Relative Strength Index (RSI)')
-    axes[2].set_ylabel('RSI Value')
-    axes[2].legend()
-    
-    plt.xlabel('Time')
-    plt.tight_layout()
-    plt.show()
+def plot_midprice_by_ticker(df):
+    tickers = df['ticker'].unique()
+    if len(tickers) > 1:
+        # Pivot the DataFrame
+        df_pivot = df.pivot(columns='ticker', values='midprice')
+        # Plot the data
+        df_pivot.plot(figsize=(12, 6))
+        plt.title('Midprice by Ticker Over Time')
+        plt.xlabel('Time')
+        plt.ylabel('Midprice')
+        plt.grid(True)
+        plt.legend(title='Ticker')
+        plt.show()
+    else:
+        plt.figure(figsize=(12, 6))
+        plt.plot(df.index, df['midprice'], marker='o', linestyle='-')
+        plt.title(f"Midprice Over Time for Ticker: {tickers[0]}")
+        plt.xlabel('Time')
+        plt.ylabel('Midprice')
+        plt.grid(True)
+        plt.show()
 
 # Parse the midprice by ticker data
 df_midprice = parse_midprice_by_ticker('midprice_by_ticker_1s.json')
@@ -95,5 +70,5 @@ df_midprice = parse_midprice_by_ticker('midprice_by_ticker_1s.json')
 if df_midprice is not None:
     # Display the first few rows
     print(df_midprice.head())
-    # Plot the midprice with indicators
-    plot_midprice_with_indicators(df_midprice)
+    # Plot the midprice by ticker
+    plot_midprice_by_ticker(df_midprice)
