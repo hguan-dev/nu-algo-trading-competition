@@ -42,27 +42,39 @@ def parse_midprice_by_ticker(json_file_path):
     
     return df
 
-def plot_midprice_by_ticker(df):
+def plot_midprice_with_rsi(df):
+    # Calculate RSI for each ticker
+    df['RSI'] = df.groupby('ticker')['midprice'].apply(lambda x: ta.momentum.RSIIndicator(x, window=14).rsi()).reset_index(level=0, drop=True)
+    
+    # Plot the data
+    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(14, 10), sharex=True)
+    
+    # Plot Midprice
     tickers = df['ticker'].unique()
-    if len(tickers) > 1:
-        # Pivot the DataFrame
-        df_pivot = df.pivot(columns='ticker', values='midprice')
-        # Plot the data
-        df_pivot.plot(figsize=(12, 6))
-        plt.title('Midprice by Ticker Over Time')
-        plt.xlabel('Time')
-        plt.ylabel('Midprice')
-        plt.grid(True)
-        plt.legend(title='Ticker')
-        plt.show()
-    else:
-        plt.figure(figsize=(12, 6))
-        plt.plot(df.index, df['midprice'], marker='o', linestyle='-')
-        plt.title(f"Midprice Over Time for Ticker: {tickers[0]}")
-        plt.xlabel('Time')
-        plt.ylabel('Midprice')
-        plt.grid(True)
-        plt.show()
+    for ticker in tickers:
+        ticker_df = df[df['ticker'] == ticker]
+        axes[0].plot(ticker_df.index, ticker_df['midprice'], label=f'Midprice - {ticker}')
+    
+    axes[0].set_title('Midprice for Different Tickers')
+    axes[0].set_ylabel('Price')
+    axes[0].legend()
+    axes[0].grid(True)
+    
+    # Plot RSI
+    for ticker in tickers:
+        ticker_df = df[df['ticker'] == ticker]
+        axes[1].plot(ticker_df.index, ticker_df['RSI'], label=f'RSI - {ticker}')
+    
+    axes[1].set_title('RSI for Different Tickers')
+    axes[1].set_ylabel('RSI Value')
+    axes[1].axhline(70, color='red', linestyle='--', label='Overbought (70)')
+    axes[1].axhline(30, color='green', linestyle='--', label='Oversold (30)')
+    axes[1].legend()
+    axes[1].grid(True)
+    
+    plt.xlabel('Time')
+    plt.tight_layout()
+    plt.show()
 
 # Parse the midprice by ticker data
 df_midprice = parse_midprice_by_ticker('midprice_by_ticker_1s.json')
@@ -70,5 +82,5 @@ df_midprice = parse_midprice_by_ticker('midprice_by_ticker_1s.json')
 if df_midprice is not None:
     # Display the first few rows
     print(df_midprice.head())
-    # Plot the midprice by ticker
-    plot_midprice_by_ticker(df_midprice)
+    # Plot the midprice with RSI
+    plot_midprice_with_rsi(df_midprice)
