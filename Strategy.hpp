@@ -2,7 +2,7 @@
 
 #include <string>
 
-enum class Side { buy = 0, sell = 1 };
+enum class Side { BUY = 0, SELL = 1 };
 enum class Ticker : std::uint8_t { ETH = 0, BTC = 1, LTC = 2 }; // NOLINT
 
 /**
@@ -46,9 +46,28 @@ void println(const std::string &text);
 
 class Strategy {
 public:
-  Strategy() {
-    // Your initialization code goes here
-  }
+    Strategy(); // Constructor
+
+    void on_trade_update(Ticker ticker, Side side, float price, float quantity);
+    void on_orderbook_update(Ticker ticker, Side side, float price, float quantity);
+    void on_account_update(Ticker ticker, Side side, float price, float quantity, float capital_remaining);
+    void execute_trade();
+    float calculate_slope();
+    bool place_market_order_with_rate_limit(Side side, Ticker ticker, float quantity);
+
+private:
+    float capital;
+    std::string position;
+    float position_size;
+    int window_size;
+    float max_position_fraction;
+    float entry_threshold;
+    float exit_threshold;
+    int max_orders_per_minute;
+    float best_bid;
+    float best_ask;
+    std::vector<float> price_history;
+    std::vector<std::chrono::steady_clock::time_point> order_timestamps;
 
   /**
    * Called whenever two orders match. Could be one of your orders, or two other
